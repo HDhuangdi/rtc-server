@@ -62,6 +62,8 @@
         pc.addEventListener("track", (e) => {
           var video = document.getElementById("other");
           if (e.streams.length > 0) {
+            video.srcObject = null
+            video.play()
             video.srcObject = e.streams[0];
             video.autoplay = true;
           }
