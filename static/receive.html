@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
+    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <title>Document</title>
+    <style>
+      div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="me" src="" width="500" height="500"></video>
+      我
+    </div>
+    <div>
+      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="other" src="" width="500" height="500"></video>
+      对方
+    </div>
+    <script>
+      var vConsole = new window.VConsole();
+      const socket = io(`wss://${document.domain}:3000`, {secure: true});
+      async function init() {
+        const pc = new RTCPeerConnection();
+
+        pc.onicecandidate = async (candidate) => {
+          // 发送给对端
+          socket.emit("icecandidateP2", candidate);
+        };
+        socket.on("icecandidateP1", (candidate) => {
+          pc.addIceCandidate(candidate);
+        });
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+        var video = document.getElementById("me");
+        console.log(video.error.code);
+        video.srcObject = stream;
+        video.autoplay = true;
+        video.onloadedmetadata = function (e) {
+            video.play();
+          };
+
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+        socket.on("offer", async (offer) => {
+          pc.setRemoteDescription(offer);
+
+          const answer = await pc.createAnswer();
+          pc.setLocalDescription(answer);
+          socket.emit("answer", answer);
+        });
+        pc.addEventListener("track", (e) => {
+          var video = document.getElementById("other");
+          if (e.streams.length > 0) {
+            video.srcObject = e.streams[0];
+            video.autoplay = true;
+          }
+        });
+      }
+      init();
+    </script>
+  </body>
+</html>

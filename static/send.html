@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
+    <title>Document</title>
+    <style>
+      div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="me" src="" width="500" height="500"></video>
+      我
+    </div>
+    <div>
+      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="other" src="" width="500" height="500"></video>
+      对方
+    </div>
+    <script>
+      const socket = io(`wss://${document.domain}:3000`, {secure: true});
+      async function init() {
+        const pc = new RTCPeerConnection();
+        pc.onicecandidate = async (e) => {
+          // 发送给对端
+          socket.emit("icecandidateP1", e.candidate);
+        };
+        socket.on("icecandidateP2", (candidate) => {
+          pc.addIceCandidate(candidate);
+        });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" }, 
+          audio: true,
+        });
+        var video = document.getElementById("me");
+        video.srcObject = stream;
+        video.autoplay = true;
+        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        socket.emit("offer", offer);
+
+        socket.on("answer", (answer) => {
+          pc.setRemoteDescription(answer);
+        });
+
+        pc.addEventListener("track", (e) => {
+          var video = document.getElementById("other");
+          if (e.streams.length > 0) {
+            video.srcObject = e.streams[0];
+            video.autoplay = true;
+          }
+        });
+      }
+      init();
+    </script>
+  </body>
+</html>
