@@ -5,71 +5,128 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
-    <script src="https://unpkg.com/vconsole@latest/dist/vconsole.min.js"></script>
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <title>Document</title>
     <style>
-      div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background-color: rgb(33, 25, 36);
+        height: 100%;
+      }
+      #me {
+        width: 25%;
+        height: 30%;
+        position: absolute;
+        right: 5%;
+        top: 5%;
+        z-index: 2;
+      }
+      button {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px 30px;
+        border: 0;
+        outline: none;
+        cursor: pointer;
+        color: #fff;
+        background-color: #ff0081;
+        z-index: 2;
+        font-size: 17px;
       }
     </style>
   </head>
   <body>
-    <div>
-      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="me" src="" width="500" height="500"></video>
-      我
-    </div>
-    <div>
-      <video webkit-playsinline playsinline x5-video-player-type="h5-page" id="other" src="" width="500" height="500"></video>
-      对方
-    </div>
+    <button id="connect" type="button" onclick="connect()">连接</button>
+    <video
+      muted
+      autoplay
+      playsinline
+      id="me"
+      src=""
+      width="500"
+      height="500"
+    ></video>
+    <video
+      autoplay
+      playsinline
+      id="other"
+      src=""
+      width="500"
+      height="500"
+    ></video>
     <script>
-      var vConsole = new window.VConsole();
-      const socket = io(`wss://${document.domain}:3000`, {secure: true});
-      async function init() {
-        const pc = new RTCPeerConnection();
+      const config = {
+        iceServers: [
+          {
+            url: "turn:124.223.3.119:3478",
+            credential: "123456",
+            username: "demo",
+          },
+        ],
+      };
+      const localVideo = document.getElementById("me");
+      const remoteVideo = document.getElementById("other");
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      remoteVideo.width = width;
+      remoteVideo.height = height;
+      remoteVideo.setAttribute("playsinline", "");
+      let localStream;
+      let remoteStream;
+      const socket = io(`wss://${document.domain}:3000`, { secure: true });
 
-        pc.onicecandidate = async (candidate) => {
-          // 发送给对端
-          socket.emit("icecandidateP2", candidate);
-        };
-        socket.on("icecandidateP1", (candidate) => {
-          pc.addIceCandidate(candidate);
-        });
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        var video = document.getElementById("me");
-        console.log(video.error.code);
-        video.srcObject = stream;
-        video.autoplay = true;
-        video.onloadedmetadata = function (e) {
-            video.play();
-          };
-
-        stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-
-        socket.on("offer", async (offer) => {
-          pc.setRemoteDescription(offer);
-
-          const answer = await pc.createAnswer();
-          pc.setLocalDescription(answer);
-          socket.emit("answer", answer);
-        });
-        pc.addEventListener("track", (e) => {
-          var video = document.getElementById("other");
-          if (e.streams.length > 0) {
-            video.srcObject = null
-            video.play()
-            video.srcObject = e.streams[0];
-            video.autoplay = true;
-          }
-        });
+      function startAction() {
+        navigator.mediaDevices
+          .getUserMedia({ video: true, audio: true })
+          .then((mediaStream) => {
+            localVideo.srcObject = mediaStream;
+            localStream = mediaStream;
+          });
       }
-      init();
+      startAction();
+
+      function connect() {
+        document.getElementById("connect").style.display = "none";
+        socket.emit("p2OnLine");
+        const pc = new RTCPeerConnection(config);
+        pc.addEventListener("icecandidate", handleConnection);
+        pc.addStream(localStream);
+        pc.addEventListener("addstream", gotRemoteMediaStream);
+        socket.on("icecandidateP1", (newIceCandidate) => {
+          console.log("icecandidateP1");
+          pc.addIceCandidate(newIceCandidate);
+        });
+        socket.on("offer", (description) => {
+          console.log("offer");
+          pc.setRemoteDescription(description);
+          pc.createAnswer().then((answer) => {
+            pc.setLocalDescription(answer);
+            offerDone = true;
+            socket.emit("answer", answer);
+          });
+        });
+        function handleConnection(event) {
+          const peerConnection = event.target;
+          const iceCandidate = event.candidate;
+
+          if (iceCandidate) {
+            const newIceCandidate = new RTCIceCandidate(iceCandidate);
+            socket.emit("icecandidateP2", newIceCandidate);
+          }
+        }
+        function gotRemoteMediaStream(event) {
+          console.log(event);
+          const mediaStream = event.stream;
+          remoteVideo.srcObject = mediaStream;
+          remoteStream = mediaStream;
+        }
+      }
     </script>
   </body>
 </html>

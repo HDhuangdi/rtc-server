@@ -5,13 +5,17 @@
   "main": "rtcServer.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start-static": "node static-server.js",
+    "start-signaling": "node signalingServer.js",
+    "pm2": "pm2 start npm --name webrtc-static -- run start-static && pm2 start npm --name webrtc-signaling -- run start-signaling",
+    "stop": "pm2 del webrtc-static && pm2 del webrtc-signaling"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "express": "^4.18.1",
+    "pm2": "^5.2.0",
     "socket.io": "^4.5.1"
   }
 }
