@@ -67,6 +67,7 @@
       let remoteStream;
       let pc;
       let offer;
+      let permission = false;
       let icds = [];
       let p2Online = false;
 
@@ -88,17 +89,24 @@
         navigator.mediaDevices
           .getUserMedia({ video: true, audio: true })
           .then((mediaStream) => {
+            permission = true;
             localVideo.srcObject = mediaStream;
             localStream = mediaStream;
-            callAction();
-          });
+          })
+          .catch((e) => {
+            permission = false;
+          })
+          .finally(callAction);
       }
 
       function callAction() {
         pc = new RTCPeerConnection(config);
 
         pc.addEventListener("icecandidate", handleConnection);
-        pc.addStream(localStream);
+        if (permission) {
+          pc.addStream(localStream);
+        }
+
         pc.addEventListener("addstream", gotRemoteMediaStream);
         pc.createOffer({
           offerToReceiveVideo: 1,
@@ -109,10 +117,10 @@
         const mediaStream = event.stream;
         remoteVideo.srcObject = mediaStream;
         remoteStream = mediaStream;
-        console.log(event);
       }
 
       function createdOffer(description) {
+        console.log(description);
         pc.setLocalDescription(description);
         offer = description;
         if (p2Online) {

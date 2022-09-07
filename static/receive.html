@@ -35,7 +35,7 @@
         outline: none;
         cursor: pointer;
         color: #fff;
-        background-color: #ff0081;
+        background-color: #409eff;
         z-index: 2;
         font-size: 17px;
       }
@@ -79,15 +79,19 @@
       remoteVideo.setAttribute("playsinline", "");
       let localStream;
       let remoteStream;
+      let permission = false;
       const socket = io(`wss://${document.domain}:3000`, { secure: true });
 
       function startAction() {
         navigator.mediaDevices
           .getUserMedia({ video: true, audio: true })
           .then((mediaStream) => {
+            permission = true
             localVideo.srcObject = mediaStream;
             localStream = mediaStream;
-          });
+          }).catch(() => {
+            permission = false
+          })
       }
       startAction();
 
@@ -96,14 +100,14 @@
         socket.emit("p2OnLine");
         const pc = new RTCPeerConnection(config);
         pc.addEventListener("icecandidate", handleConnection);
-        pc.addStream(localStream);
+        if (permission) {
+          pc.addStream(localStream);
+        }
         pc.addEventListener("addstream", gotRemoteMediaStream);
         socket.on("icecandidateP1", (newIceCandidate) => {
-          console.log("icecandidateP1");
           pc.addIceCandidate(newIceCandidate);
         });
         socket.on("offer", (description) => {
-          console.log("offer");
           pc.setRemoteDescription(description);
           pc.createAnswer().then((answer) => {
             pc.setLocalDescription(answer);
@@ -121,7 +125,6 @@
           }
         }
         function gotRemoteMediaStream(event) {
-          console.log(event);
           const mediaStream = event.stream;
           remoteVideo.srcObject = mediaStream;
           remoteStream = mediaStream;
