@@ -127,6 +127,7 @@
           socket.emit("offer", description);
         }
         socket.on("answer", (answer) => {
+          answer.sdp = convertAnswerSdp(description.sdp, answer.sdp)
           pc.setRemoteDescription(answer);
           icds.forEach((icd) => {
             socket.emit("icecandidateP1", JSON.parse(JSON.stringify(icd)));
@@ -148,6 +149,38 @@
       }
       startAction();
       socket.emit("p1OnLine");
+
+      function convertAnswerSdp(offerSdp, answerSdp) {
+        if (!answerSdp) return;
+        const indexOfOfferVideo = offerSdp.indexOf("m=video");
+        const indexOfOfferAudio = offerSdp.indexOf("m=audio");
+        if (indexOfOfferVideo == -1 || indexOfOfferAudio == -1) {
+          return answerSdp;
+        }
+        const indexOfAnswerVideo = answerSdp.indexOf("m=video");
+        const indexOfAnswerAudio = answerSdp.indexOf("m=audio");
+        if (indexOfAnswerVideo == -1 || indexOfAnswerAudio == -1) {
+          return answerSdp;
+        }
+        const isFirstOfferVideo = indexOfOfferVideo < indexOfOfferAudio;
+        const isFirstAnswerVideo = indexOfAnswerVideo < indexOfAnswerAudio;
+        if (isFirstOfferVideo == isFirstAnswerVideo) {
+          //顺序一致
+          return answerSdp;
+        } else if (!isFirstOfferVideo && isFirstAnswerVideo) {
+          // offer video 在后，需要将answer的Video放到后面
+          return `${answerSdp.slice(
+            indexOfAnswerAudio,
+            answerSdp.length
+          )}${answerSdp.slice(0, indexOfAnswerAudio)}`;
+        } else if (isFirstOfferVideo && !isFirstAnswerVideo) {
+          // offer video 在前，需要将answer的Video放到前面
+          return `${answerSdp.slice(
+            indexOfAnswerVideo,
+            answerSdp.length
+          )}${answerSdp.slice(0, indexOfAnswerVideo)}`;
+        }
+      }
     </script>
   </body>
 </html>

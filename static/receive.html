@@ -110,6 +110,7 @@
         socket.on("offer", (description) => {
           pc.setRemoteDescription(description);
           pc.createAnswer().then((answer) => {
+            console.log(answer);
             pc.setLocalDescription(answer);
             offerDone = true;
             socket.emit("answer", answer);
