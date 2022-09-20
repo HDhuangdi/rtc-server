@@ -25,9 +25,20 @@
         top: 5%;
         z-index: 2;
       }
+      #hangupButton {
+        position: absolute;
+        bottom: 10%;
+        left: 50%;
+        transform: translate(-50%, 0);
+        width: 60px;
+        cursor: pointer;
+        z-index: 3;
+        display: none;
+      }
     </style>
   </head>
   <body>
+    <img id="hangupButton" src="./hangup.png" alt="" />
     <video
       muted
       autoplay
@@ -63,6 +74,8 @@
       const startButton = document.getElementById("startButton");
       const callButton = document.getElementById("callButton");
       const hangupButton = document.getElementById("hangupButton");
+      hangupButton.addEventListener("click", hangupAction);
+
       let localStream;
       let remoteStream;
       let pc;
@@ -78,6 +91,7 @@
 
       socket.on("p2OnLine", () => {
         p2Online = true;
+        hangupButton.style.display = "block";
         socket.emit("offer", offer);
       });
       socket.on("icecandidateP2", (newIceCandidate) => {
@@ -113,6 +127,23 @@
         }).then(createdOffer);
       }
 
+      function hangupAction() {
+        hangupButton.style.display = "none";
+        remoteVideo.srcObject = null;
+        socket.emit("hangup");
+        p2Online = false;
+        pc.close();
+        setTimeout(callAction, 1000);
+      }
+
+      socket.on("hangup", () => {
+        hangupButton.style.display = "none";
+        remoteVideo.srcObject = null;
+        pc.close();
+        p2Online = false;
+        setTimeout(callAction, 1000);
+      });
+
       function gotRemoteMediaStream(event) {
         const mediaStream = event.stream;
         remoteVideo.srcObject = mediaStream;
@@ -127,7 +158,7 @@
           socket.emit("offer", description);
         }
         socket.on("answer", (answer) => {
-          answer.sdp = convertAnswerSdp(description.sdp, answer.sdp)
+          answer.sdp = convertAnswerSdp(description.sdp, answer.sdp);
           pc.setRemoteDescription(answer);
           icds.forEach((icd) => {
             socket.emit("icecandidateP1", JSON.parse(JSON.stringify(icd)));

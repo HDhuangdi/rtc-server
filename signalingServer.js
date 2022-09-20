@@ -44,4 +44,8 @@ io.on("connection", (socket) => {
     console.log("p2Done");
     socket.broadcast.emit("p2Done", e);
   });
+  socket.on("hangup", (e) => {
+    console.log("hangup");
+    socket.broadcast.emit("hangup", e);
+  });
 });

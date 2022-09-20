@@ -39,10 +39,21 @@
         z-index: 2;
         font-size: 17px;
       }
+      #hangupButton {
+        position: absolute;
+        bottom: 10%;
+        left: 50%;
+        transform: translate(-50%, 0);
+        width: 60px;
+        cursor: pointer;
+        z-index: 3;
+        display: none;
+      }
     </style>
   </head>
   <body>
     <button id="connect" type="button" onclick="connect()">连接</button>
+    <img id="hangupButton" src="./hangup.png" alt="" />
     <video
       muted
       autoplay
@@ -70,8 +81,11 @@
           },
         ],
       };
+      const hangupButton = document.getElementById("hangupButton");
+      const connectButton = document.getElementById("connect");
       const localVideo = document.getElementById("me");
-      const remoteVideo = document.getElementById("other");
+      let remoteVideo = document.getElementById("other");
+      hangupButton.addEventListener("click", hangupAction);
       const width = window.innerWidth;
       const height = window.innerHeight;
       remoteVideo.width = width;
@@ -80,25 +94,46 @@
       let localStream;
       let remoteStream;
       let permission = false;
+      let pc;
       const socket = io(`wss://${document.domain}:3000`, { secure: true });
 
       function startAction() {
         navigator.mediaDevices
-          .getUserMedia({ video: true, audio: true })
+          .getUserMedia({
+            video: { facingMode: { exact: "environment" } },
+            audio: true,
+          })
           .then((mediaStream) => {
-            permission = true
+            permission = true;
             localVideo.srcObject = mediaStream;
             localStream = mediaStream;
-          }).catch(() => {
-            permission = false
           })
+          .catch(() => {
+            permission = false;
+          });
       }
       startAction();
 
+      socket.on("hangup", () => {
+        hangupButton.style.display = "none";
+        remoteVideo.srcObject = null;
+        connectButton.style.display = "block";
+        pc.close();
+      });
+
+      function hangupAction() {
+        hangupButton.style.display = "none";
+        remoteVideo.srcObject = null;
+        connectButton.style.display = "block";
+        pc.close();
+        socket.emit("hangup");
+      }
+
       function connect() {
-        document.getElementById("connect").style.display = "none";
+        connectButton.style.display = "none";
+        hangupButton.style.display = "block";
         socket.emit("p2OnLine");
-        const pc = new RTCPeerConnection(config);
+        pc = new RTCPeerConnection(config);
         pc.addEventListener("icecandidate", handleConnection);
         if (permission) {
           pc.addStream(localStream);
@@ -110,12 +145,12 @@
         socket.on("offer", (description) => {
           pc.setRemoteDescription(description);
           pc.createAnswer().then((answer) => {
-            console.log(answer);
             pc.setLocalDescription(answer);
             offerDone = true;
             socket.emit("answer", answer);
           });
         });
+
         function handleConnection(event) {
           const peerConnection = event.target;
           const iceCandidate = event.candidate;
@@ -125,6 +160,7 @@
             socket.emit("icecandidateP2", newIceCandidate);
           }
         }
+
         function gotRemoteMediaStream(event) {
           const mediaStream = event.stream;
           remoteVideo.srcObject = mediaStream;
