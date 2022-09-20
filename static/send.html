@@ -35,10 +35,21 @@
         z-index: 3;
         display: none;
       }
+      #toggleButton {
+        width: 40px;
+        position: absolute;
+        bottom: 11.5%;
+        left: 70%;
+        transform: translate(-50%, 0);
+        cursor: pointer;
+        z-index: 3;
+        display: none;
+      }
     </style>
   </head>
   <body>
     <img id="hangupButton" src="./hangup.png" alt="" />
+    <img id="toggleButton" src="./toggle.png" alt="" />
     <video
       muted
       autoplay
@@ -74,7 +85,9 @@
       const startButton = document.getElementById("startButton");
       const callButton = document.getElementById("callButton");
       const hangupButton = document.getElementById("hangupButton");
+      const toggleButton = document.getElementById("toggleButton");
       hangupButton.addEventListener("click", hangupAction);
+      toggleButton.addEventListener("click", toggle);
 
       let localStream;
       let remoteStream;
@@ -83,6 +96,7 @@
       let permission = false;
       let icds = [];
       let p2Online = false;
+      let camera = 0; // 0, 前置; 1, 后置
 
       const width = window.innerWidth;
       const height = window.innerHeight;
@@ -92,6 +106,7 @@
       socket.on("p2OnLine", () => {
         p2Online = true;
         hangupButton.style.display = "block";
+        toggleButton.style.display = "block";
         socket.emit("offer", offer);
       });
       socket.on("icecandidateP2", (newIceCandidate) => {
@@ -101,7 +116,10 @@
 
       function startAction() {
         navigator.mediaDevices
-          .getUserMedia({ video: true, audio: true })
+          .getUserMedia({
+            video: { facingMode:  camera ? "environment" : "user"  },
+            audio: true,
+          })
           .then((mediaStream) => {
             permission = true;
             localVideo.srcObject = mediaStream;
@@ -111,6 +129,30 @@
             permission = false;
           })
           .finally(callAction);
+      }
+      function toggle() {
+        if (camera == 0) {
+          camera = 1;
+        } else {
+          camera = 0;
+        }
+        localVideo.srcObject = null;
+        navigator.mediaDevices
+        .getUserMedia({
+            video: { 
+              facingMode:  camera ? "environment" : "user" 
+            },
+            audio: true,
+          })
+          .then((mediaStream) => {
+            permission = true;
+            localVideo.srcObject = mediaStream;
+            localStream = mediaStream;
+            pc.getSenders()[1].replaceTrack(localStream.getVideoTracks()[0]);
+          })
+          .catch((e) => {
+            permission = false;
+          });
       }
 
       function callAction() {
@@ -129,6 +171,7 @@
 
       function hangupAction() {
         hangupButton.style.display = "none";
+        toggleButton.style.display = "none";
         remoteVideo.srcObject = null;
         socket.emit("hangup");
         p2Online = false;
@@ -138,6 +181,7 @@
 
       socket.on("hangup", () => {
         hangupButton.style.display = "none";
+        toggleButton.style.display = "none";
         remoteVideo.srcObject = null;
         pc.close();
         p2Online = false;
