@@ -1,220 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
-    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
-    <title>Document</title>
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-      }
-      html,
-      body {
-        background-color: rgb(33, 25, 36);
-        height: 100%;
-      }
-      #me {
-        width: 25%;
-        height: 30%;
-        position: absolute;
-        right: 5%;
-        top: 5%;
-        z-index: 2;
-      }
-      #connect {
-        position: absolute;
-        left: 50%;
-        top: 50%;
-        transform: translate(-50%, -50%);
-        padding: 20px 30px;
-        border: 0;
-        outline: none;
-        cursor: pointer;
-        color: #fff;
-        background-color: #409eff;
-        z-index: 2;
-        font-size: 17px;
-      }
-      #hangupButton {
-        position: absolute;
-        bottom: 10%;
-        left: 50%;
-        transform: translate(-50%, 0);
-        width: 60px;
-        cursor: pointer;
-        z-index: 3;
-        display: none;
-      }
-      #toggleButton {
-        width: 40px;
-        position: absolute;
-        bottom: 11.5%;
-        left: 70%;
-        transform: translate(-50%, 0);
-        cursor: pointer;
-        z-index: 3;
-        display: none;
-      }
-    </style>
-  </head>
-  <body>
-    <button id="connect" type="button" onclick="connect()">连接</button>
-    <img id="toggleButton" src="./toggle.png" alt="" />
-    <img id="hangupButton" src="./hangup.png" alt="" />
-    <video
-      muted
-      autoplay
-      playsinline
-      id="me"
-      src=""
-      width="500"
-      height="500"
-    ></video>
-    <video
-      autoplay
-      playsinline
-      id="other"
-      src=""
-      width="500"
-      height="500"
-    ></video>
-    <script>
-      const config = {
-        iceServers: [
-          {
-            url: "turn:124.223.3.119:3478",
-            credential: "123456",
-            username: "demo",
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.bootcdn.net/ajax/libs/socket.io/4.5.2/socket.io.js"></script>
+  <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+  <title>Document</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      background-color: rgb(33, 25, 36);
+      height: 100%;
+    }
+
+    #me {
+      width: 25%;
+      height: 30%;
+      position: absolute;
+      right: 5%;
+      top: 5%;
+      z-index: 2;
+    }
+
+    #connect {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px 30px;
+      border: 0;
+      outline: none;
+      cursor: pointer;
+      color: #fff;
+      background-color: #409eff;
+      z-index: 2;
+      font-size: 17px;
+    }
+
+    #hangupButton {
+      position: absolute;
+      bottom: 10%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      width: 60px;
+      cursor: pointer;
+      z-index: 3;
+      display: none;
+    }
+
+    #toggleButton {
+      width: 40px;
+      position: absolute;
+      bottom: 11.5%;
+      left: 70%;
+      transform: translate(-50%, 0);
+      cursor: pointer;
+      z-index: 3;
+      display: none;
+    }
+  </style>
+</head>
+
+<body>
+  <button id="connect" type="button" onclick="connect()">连接</button>
+  <img id="toggleButton" src="./toggle.png" alt="" />
+  <img id="hangupButton" src="./hangup.png" alt="" />
+  <video muted autoplay playsinline id="me" src="" width="500" height="500"></video>
+  <video autoplay playsinline id="other" src="" width="500" height="500"></video>
+  <script>
+    const config = {
+      iceServers: [
+        {
+          url: "turn:43.143.102.114:3478",
+          credential: "123456",
+          username: "demo",
+        },
+      ],
+    };
+    const hangupButton = document.getElementById("hangupButton");
+    const toggleButton = document.getElementById("toggleButton");
+    const connectButton = document.getElementById("connect");
+    const localVideo = document.getElementById("me");
+    let remoteVideo = document.getElementById("other");
+    hangupButton.addEventListener("click", hangupAction);
+    toggleButton.addEventListener("click", toggle);
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    remoteVideo.width = width;
+    remoteVideo.height = height;
+    remoteVideo.setAttribute("playsinline", "");
+    let localStream;
+    let remoteStream;
+    let permission = false;
+    let pc;
+    let camera = 1; // 0, 前置; 1, 后置
+    const socket = io(`wss://${document.domain}:4000`, { secure: true });
+
+    function startAction() {
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: camera ? "environment" : "user"
           },
-        ],
-      };
-      const hangupButton = document.getElementById("hangupButton");
-      const toggleButton = document.getElementById("toggleButton");
-      const connectButton = document.getElementById("connect");
-      const localVideo = document.getElementById("me");
-      let remoteVideo = document.getElementById("other");
-      hangupButton.addEventListener("click", hangupAction);
-      toggleButton.addEventListener("click", toggle);
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      remoteVideo.width = width;
-      remoteVideo.height = height;
-      remoteVideo.setAttribute("playsinline", "");
-      let localStream;
-      let remoteStream;
-      let permission = false;
-      let pc;
-      let camera = 1; // 0, 前置; 1, 后置
-      const socket = io(`wss://${document.domain}:3000`, { secure: true });
+          audio: true,
+        })
+        .then((mediaStream) => {
+          permission = true;
 
-      function startAction() {
-        navigator.mediaDevices
-          .getUserMedia({
-            video: { 
-              facingMode:  camera ? "environment" : "user" 
-            },
-            audio: true,
-          })
-          .then((mediaStream) => {
-            permission = true;
-            localVideo.srcObject = mediaStream;
-            localStream = mediaStream;
-          })
-          .catch(() => {
-            permission = false;
-          });
+          localStream = mediaStream;
+        })
+        .catch(() => {
+          permission = false;
+        });
+    }
+    startAction();
+
+    function toggle() {
+      if (camera == 0) {
+        camera = 1;
+      } else {
+        camera = 0;
       }
-      
+      localVideo.srcObject = null;
+      navigator.mediaDevices
+        .getUserMedia({
+          video: {
+            facingMode: camera ? "environment" : "user"
+          },
+          audio: true,
+        })
+        .then((mediaStream) => {
+          permission = true;
+          localVideo.srcObject = mediaStream;
+          localStream = mediaStream;
+          pc.getSenders()[1].replaceTrack(localStream.getVideoTracks()[0]);
+        })
+        .catch((e) => {
+          permission = false;
+        });
+    }
 
-      function toggle() {
-        if (camera == 0) {
-          camera = 1;
-        } else {
-          camera = 0;
-        }
-        localVideo.srcObject = null;
-        navigator.mediaDevices
-          .getUserMedia({
-            video: { 
-              facingMode:  camera ? "environment" : "user" 
-            },
-            audio: true,
-          })
-          .then((mediaStream) => {
-            permission = true;
-            localVideo.srcObject = mediaStream;
-            localStream = mediaStream;
-            pc.getSenders()[1].replaceTrack(localStream.getVideoTracks()[0]);
-          })
-          .catch((e) => {
-            permission = false;
-          });
+    socket.on("hangup", () => {
+      hangupButton.style.display = "none";
+      toggleButton.style.display = "none";
+      remoteVideo.srcObject = null;
+      localVideo.srcObject = null;
+      connectButton.style.display = "block";
+      pc.close();
+    });
+
+    function hangupAction() {
+      hangupButton.style.display = "none";
+      toggleButton.style.display = "none";
+      remoteVideo.srcObject = null;
+      localVideo.srcObject = null;
+      connectButton.style.display = "block";
+      pc.close();
+      socket.emit("hangup");
+    }
+
+    function connect() {
+
+      localVideo.srcObject = localStream;
+      connectButton.style.display = "none";
+      hangupButton.style.display = "block";
+      toggleButton.style.display = "block";
+      socket.emit("p2OnLine");
+      pc = new RTCPeerConnection(config);
+      pc.addEventListener("icecandidate", handleConnection);
+      if (permission) {
+        pc.addStream(localStream);
       }
-
-      socket.on("hangup", () => {
-        hangupButton.style.display = "none";
-        toggleButton.style.display = "none";
-        remoteVideo.srcObject = null;
-        localVideo.srcObject = null;
-        connectButton.style.display = "block";
-        pc.close();
+      pc.addEventListener("addstream", gotRemoteMediaStream);
+      socket.on("icecandidateP1", (newIceCandidate) => {
+        pc.addIceCandidate(newIceCandidate);
+      });
+      socket.on("offer", (description) => {
+        pc.setRemoteDescription(description);
+        pc.createAnswer().then((answer) => {
+          pc.setLocalDescription(answer);
+          offerDone = true;
+          socket.emit("answer", answer);
+        });
       });
 
-      function hangupAction() {
-        hangupButton.style.display = "none";
-        toggleButton.style.display = "none";
-        remoteVideo.srcObject = null;
-        localVideo.srcObject = null;
-        connectButton.style.display = "block";
-        pc.close();
-        socket.emit("hangup");
-      }
+      function handleConnection(event) {
+        const peerConnection = event.target;
+        const iceCandidate = event.candidate;
 
-      function connect() {
-        startAction();
-        connectButton.style.display = "none";
-        hangupButton.style.display = "block";
-        toggleButton.style.display = "block";
-        socket.emit("p2OnLine");
-        pc = new RTCPeerConnection(config);
-        pc.addEventListener("icecandidate", handleConnection);
-        if (permission) {
-          pc.addStream(localStream);
-        }
-        pc.addEventListener("addstream", gotRemoteMediaStream);
-        socket.on("icecandidateP1", (newIceCandidate) => {
-          pc.addIceCandidate(newIceCandidate);
-        });
-        socket.on("offer", (description) => {
-          pc.setRemoteDescription(description);
-          pc.createAnswer().then((answer) => {
-            pc.setLocalDescription(answer);
-            offerDone = true;
-            socket.emit("answer", answer);
-          });
-        });
-
-        function handleConnection(event) {
-          const peerConnection = event.target;
-          const iceCandidate = event.candidate;
-
-          if (iceCandidate) {
-            const newIceCandidate = new RTCIceCandidate(iceCandidate);
-            socket.emit("icecandidateP2", newIceCandidate);
-          }
-        }
-
-        function gotRemoteMediaStream(event) {
-          console.log(event);
-          const mediaStream = event.stream;
-          remoteVideo.srcObject = mediaStream;
-          remoteStream = mediaStream;
+        if (iceCandidate) {
+          const newIceCandidate = new RTCIceCandidate(iceCandidate);
+          socket.emit("icecandidateP2", newIceCandidate);
         }
       }
-    </script>
-  </body>
+
+      function gotRemoteMediaStream(event) {
+        console.log(event);
+        const mediaStream = event.stream;
+        remoteVideo.srcObject = mediaStream;
+        remoteStream = mediaStream;
+      }
+    }
+  </script>
+</body>
+
 </html>

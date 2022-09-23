@@ -9,10 +9,10 @@ const app = express()
 
 
 var options = {
-  key: fs.readFileSync('/html/pem/124_223..sa.key'),
-  cert: fs.readFileSync('/html/pem/124_223..19.pem')
+  key: fs.readFileSync('/opt/pem/hzwateritzx.com.key'),
+  cert: fs.readFileSync('/opt/pem/hzwateritzx.com_bundle.crt')
 };
-var server = https.createServer(options, app).listen(3000);
+var server = https.createServer(options, app).listen(4000);
 const io = new Server(server, { cors: true,secure: true });
 
 io.on("connection", (socket) => {

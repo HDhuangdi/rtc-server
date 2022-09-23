@@ -72,13 +72,13 @@
       const config = {
         iceServers: [
           {
-            url: "turn:124.223.3.119:3478",
+            url: "turn:43.143.102.114:3478",
             credential: "123456",
             username: "demo",
           },
         ],
       };
-      const socket = io(`wss://${document.domain}:3000`, { secure: true });
+      const socket = io(`wss://${document.domain}:4000`, { secure: true });
       const localVideo = document.getElementById("me");
       localVideo.setAttribute("playsinline", "");
       const remoteVideo = document.getElementById("other");

@@ -4,7 +4,7 @@ import fs from 'fs'
 const resolve = path => fs.resolve(__dirname, path)
 
 const app = express()
-const port = 3001
+const port = 4001
 app.use(express.static('./static'));
 
 app.listen(port, () => {
